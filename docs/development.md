@@ -225,8 +225,29 @@ without forcing the app open. Both the unsigned PAL archive and sideload IPA pas
 Apple distribution identity. Account setup, signed-device verification, notarization and a real marketplace
 install remain required before publishing PAL.
 
+Verification on 17 November 2026 (physical iPhone 7, iOS 15.8.8): SideStore 0.7.0 (a 27 October nightly) installed
+the published 1.0.2 IPA from the public source, and the Subscriptions tab shows its icon. SideStore's My Apps never
+listed the update, a known SideStore bug ([SideStore#975](https://github.com/SideStore/SideStore/issues/975)).
+DriftLoom's own page in the source showed Free for the installed 1.0.1, and installing from there worked once
+SideStore could reach the device over WireGuard; LocalDevVPN's tunnel was unreachable. SideStore signed with a
+different team than the 1.0.1 install, so iOS added a second app with an empty library instead of updating; an
+in-place update under the same team is still unchecked. TrollStore 2.1.1 installs and runs the same IPA on 15.8.8.
+A 1.0.2 device-testing build (`DRIFTLOOM_DEVICE_TESTING`, separate bundle ID) passed on that phone: playback past
+65 seconds over HLS; background playback with Settings in front, both with video (iOS started Picture in Picture on
+leaving the app) and audio-only; Picture in Picture from the inline player; HLS and merged 480p downloads, both
+playable offline, and the HLS download again after a cold launch. When relaunching smoke checks with
+`--kill-existing`, also pass `--library-smoke-run NAME`, or the next launch offers a "quit unexpectedly" report.
+Xcode 27.2's XCTest needs iOS 17, so UI tests can't run on this phone; the Copy link share flow and Lock Screen
+controls weren't checked on hardware. In 1.0.2 the item actions' Play next has no icon on iOS 15
+(`text.line.first.and.arrowtriangle.forward` needs iOS 16); `SystemSymbol.playNext` now falls back to
+`text.insert`, and the same check on the phone logged no missing-symbol warning. Every other SF Symbol the app
+uses exists on iOS 15 (checked against macOS's `CoreGlyphs` availability list).
+
 Known gaps:
 
+- TrollStore on iOS 15 registers the Live Activity extension although it needs iOS 16.1, so iOS starts it and it
+  crashes at launch (a missing Foundation symbol), leaving DriftLoomWidgets crash reports. SideStore installs skip
+  the extension, as iOS should, and nothing visible breaks.
 - In iPad full screen the brightness and volume swipes don't respond; AVKit seems to take the touches before the
   pan recognizer on its view. iPhone is fine. The UI test checks the swipes on iPhone only.
 - Picture in Picture and HLS downloads are only checked on hardware (the iPhone 7/iOS 15), not on iOS 26 or 27.

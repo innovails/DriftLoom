@@ -12,8 +12,10 @@ After setting up SideStore or AltStore Classic, add the same source in either ap
 `https://sk3llo.github.io/DriftLoom/source.json`
 
 Open the installer's **Sources** screen, tap **+**, paste that address and confirm. Find **DriftLoom** in Browse
-and tap Install. Future published releases appear as updates in the installer; update with the same Apple ID
-to keep your library. Installing from the source does not remove the seven-day refresh requirement.
+and tap Install. Install from here rather than from the IPA file, so the installer knows the copy came from this
+source; SideStore doesn't offer the source's updates for a copy installed from a file. To update, see
+[Updating DriftLoom](#updating-driftloom); use the same Apple ID to keep your library. Installing from the source
+does not remove the seven-day refresh requirement.
 
 From your iPhone, you can also use [Add to SideStore](sidestore://source?url=https%3A%2F%2Fsk3llo.github.io%2FDriftLoom%2Fsource.json)
 or [Add to AltStore Classic](altstore://source?url=https%3A%2F%2Fsk3llo.github.io%2FDriftLoom%2Fsource.json).
@@ -64,9 +66,11 @@ You need a computer once, to install SideStore and give it a "pairing file" that
 2. On the computer, follow [SideStore's install guide](https://docs.sidestore.io). It currently uses a desktop
    app (iLoader) that installs SideStore and its pairing file over USB; sign in with your Apple ID when asked.
 3. Do the Developer Mode and trust steps from [Before you start](#before-you-start-all-tools), then open SideStore.
-4. On the iPhone, download `DriftLoom-<version>.ipa` from the [Releases page](https://github.com/sk3llo/DriftLoom/releases)
-   in Safari (it goes to the Files app).
-5. Connect LocalDevVPN, open SideStore → **My Apps** → **+**, and pick the IPA.
+4. Connect LocalDevVPN, add the [public source](#install-and-update-from-the-public-source) in SideStore, open
+   **DriftLoom** on the source's page and tap its button.
+5. Or, without the source: download `DriftLoom-<version>.ipa` from the
+   [Releases page](https://github.com/sk3llo/DriftLoom/releases) in Safari (it goes to the Files app), then pick it
+   in SideStore → **My Apps** → **+**. SideStore won't offer updates for a copy installed this way.
 
 SideStore refreshes DriftLoom in the background as long as **LocalDevVPN is connected** and the phone has
 internet. You can also refresh by hand: SideStore → **My Apps** → **Refresh All**. Keep SideStore itself
@@ -95,14 +99,27 @@ in [Before you start](#before-you-start-all-tools). Repeat the install at least 
 
 ## Updating DriftLoom
 
-If you added the public source, use **Update** in SideStore or AltStore Classic when a new release appears.
+If you added the public source, use **Update** in AltStore Classic → **My Apps** when a new release appears.
 The source checks published releases, so unreleased development builds and draft releases are not offered.
 
-Install the new IPA with the same tool and the same Apple ID. It replaces the old version and keeps your library.
+SideStore's **My Apps** may say "No Updates Available" even when a new release is out (a
+[SideStore bug](https://github.com/SideStore/SideStore/issues/975)). Update from the app's own page instead:
+**Sources** → **DriftLoom** → **DriftLoom**, then tap the button. It should say **Update** for a copy SideStore
+installed from the source. **Free** means SideStore doesn't link your installed copy to the source, for example
+because you installed it from the IPA file; tapping it installs the new version over your copy.
+
+Without the source, install the new IPA with the same tool. Either way, the update replaces the old version and
+keeps your library only if it's signed with the same Apple ID as before. With a different Apple ID, or if
+SideStore signs with a different developer team, iOS installs a second DriftLoom with an empty library, so export
+a backup first (see [Back up before reinstalling](#back-up-before-reinstalling)).
 
 ## If DriftLoom stops opening
 
 - **SideStore:** make sure LocalDevVPN is connected, then SideStore → **My Apps** → **Refresh All**.
+- **SideStore says it can't reach the device, or that no pairing file is loaded:** these usually mean its VPN
+  tunnel isn't working. Turn LocalDevVPN off and on, close SideStore in the app switcher, reopen it and wait a few
+  seconds before installing or refreshing. If LocalDevVPN shows as connected but SideStore still can't reach the
+  device, try SideStore's WireGuard setup instead (see [SideStore's docs](https://docs.sidestore.io)).
 - **SideStore after an iOS update or a reset:** if refreshing fails with a pairing or connection error, the
   pairing file needs to be made again. Connect the iPhone to a computer and redo step 2 of
   [Install with SideStore](#install-with-sidestore-recommended); your apps and data stay.
@@ -124,6 +141,8 @@ For problems inside the app, see [Troubleshooting](user-guide/troubleshooting.md
   - **Turn off automatic iOS updates.** Updating past a supported version makes TrollStore apps stop opening,
     and Apple doesn't let you go back.
   - If an app stops opening after a reboot, use **Refresh App Registrations** in TrollStore's settings.
+  - On iOS 15, TrollStore also installs DriftLoom's Live Activity extension, which needs iOS 16.1, so iOS logs
+    harmless `DriftLoomWidgets` crash reports. Everything else works.
   - TrollStore keeps DriftLoom's original bundle ID, while SideStore and AltStore change it. iOS treats them as
     different apps, so export a backup before switching (see below).
   - Only install the IPA from the Releases page and check its checksum. TrollStore gives apps more access than

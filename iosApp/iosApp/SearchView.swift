@@ -325,7 +325,7 @@ struct BrowseItemMenu: View {
     var body: some View {
         if item.kind == .video {
             IconButton("Play", systemImage: "play") { onPlay(item) }
-            IconButton("Play next", systemImage: "text.line.first.and.arrowtriangle.forward") { queue.enqueue(item, next: true) }
+            IconButton("Play next", systemImage: SystemSymbol.playNext) { queue.enqueue(item, next: true) }
             IconButton("Enqueue", systemImage: "text.badge.plus") { queue.enqueue(item) }
             IconButton("Add to playlist", systemImage: "plus.rectangle.on.rectangle") {
                 NotificationCenter.default.post(name: .driftLoomAddToPlaylist, object: item)

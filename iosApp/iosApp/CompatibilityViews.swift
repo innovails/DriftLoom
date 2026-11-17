@@ -21,6 +21,15 @@ struct BrowseLink<Content: View>: View {
     }
 }
 
+/// SF Symbols newer than iOS 15, with the closest symbol iOS 15 has. An unknown name draws no icon.
+enum SystemSymbol {
+    /// The system Play Next icon from iOS 16; iOS 15 has its predecessor.
+    static var playNext: String {
+        if #available(iOS 16, *) { return "text.line.first.and.arrowtriangle.forward" }
+        return "text.insert"
+    }
+}
+
 struct IconButton: View {
     let title: LocalizedStringKey
     let systemImage: String
