@@ -301,7 +301,9 @@ final class DownloadManager: ObservableObject {
     /// Combine both finished parts into one MP4, then validate it like any other download.
     private func mergeParts(_ transfer: String) async {
         guard let record = matching(transfer), let parts = record.partPaths,
-              let videoPath = parts[TransferParts.video], let audioPath = parts[TransferParts.audio] else { return }
+              let videoPath = parts[TransferParts.video], let audioPath = parts[TransferParts.audio] else {
+            failed(transfer, message: String(localized: "The video and audio couldn't be combined. Retry the download.")); return
+        }
         let home = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
         let output = home.appendingPathComponent("Library/Application Support/DriftLoom/Media")
             .appendingPathComponent(record.id.uuidString + "-" + UUID().uuidString + ".mp4")
@@ -317,13 +319,29 @@ final class DownloadManager: ObservableObject {
         partProgress[transfer] = nil
         await completed(transfer, location: output, hls: false)
     }
+    /// Remember where an HLS package is being written; persisted so a relaunch by the background session can finish it.
+    fileprivate func hlsLocation(_ transfer: String?, _ location: URL) {
+        guard var record = matching(transfer), let path = DownloadPaths.relativePath(for: location, home: URL(fileURLWithPath: NSHomeDirectory())) else { return }
+        record.localPath = path; _ = library.update(record)
+    }
+    fileprivate func hlsFinished(_ transfer: String?) async {
+        guard let path = matching(transfer)?.localPath else {
+            failed(transfer, message: String(localized: "Downloaded media location is unavailable.")); return
+        }
+        await completed(transfer, location: URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(path), hls: true)
+    }
     fileprivate func completed(_ transfer: String?, location: URL, hls: Bool) async {
         if let part = TransferParts.part(transfer), let base = TransferParts.base(transfer) {
-            guard var record = matching(base), let path = DownloadPaths.relativePath(for: location, home: URL(fileURLWithPath: NSHomeDirectory())) else {
-                try? FileManager.default.removeItem(at: location); return
+            guard var record = matching(base) else { try? FileManager.default.removeItem(at: location); return }
+            guard let path = DownloadPaths.relativePath(for: location, home: URL(fileURLWithPath: NSHomeDirectory())) else {
+                try? FileManager.default.removeItem(at: location)
+                failed(transfer, message: String(localized: "Downloaded media location is unavailable.")); return
             }
             record.partPaths = (record.partPaths ?? [:]).merging([part: path]) { _, new in new }
-            guard library.update(record) else { try? FileManager.default.removeItem(at: location); return }
+            guard library.update(record) else {
+                try? FileManager.default.removeItem(at: location)
+                failed(transfer, message: String(localized: "The downloaded file couldn't be saved. Check available storage.")); return
+            }
             if record.partPaths?.count == 2 { await mergeParts(base) }
             return
         }
@@ -372,8 +390,13 @@ private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, AVAs
         let value = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
         Task { @MainActor in self.owner?.progress(downloadTask.taskDescription, value: value) }
     }
+    // HLS: the package location is reported when the download starts (iOS 15+) and again when its media is
+    // written, but the package is only complete once the task completes, so it's checked there.
+    func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, willDownloadTo location: URL) {
+        Task { @MainActor in self.owner?.hlsLocation(assetDownloadTask.taskDescription, location) }
+    }
     func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didFinishDownloadingTo location: URL) {
-        Task { @MainActor in await self.owner?.completed(assetDownloadTask.taskDescription, location: location, hls: true) }
+        Task { @MainActor in self.owner?.hlsLocation(assetDownloadTask.taskDescription, location) }
     }
     func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didLoad timeRange: CMTimeRange, totalTimeRangesLoaded loadedTimeRanges: [NSValue], timeRangeExpectedToLoad: CMTimeRange) {
         let duration = timeRangeExpectedToLoad.duration.seconds
@@ -383,6 +406,7 @@ private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, AVAs
     }
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if let error { Task { @MainActor in self.owner?.failed(task.taskDescription, message: error.localizedDescription) } }
+        else if task is AVAssetDownloadTask { Task { @MainActor in await self.owner?.hlsFinished(task.taskDescription) } }
     }
     func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
         guard let id = session.configuration.identifier else { return }
