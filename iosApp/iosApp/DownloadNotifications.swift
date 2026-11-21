@@ -5,6 +5,8 @@ import UserNotifications
 
 extension Notification.Name {
     static let driftLoomOpenDownloads = Notification.Name("DriftLoom.openDownloads")
+    /// Object: the video ID whose download just completed.
+    static let driftLoomDownloadFinished = Notification.Name("DriftLoom.downloadFinished")
 }
 
 /// Local notifications when a download finishes or fails. Permission is asked when the first

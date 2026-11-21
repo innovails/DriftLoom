@@ -139,6 +139,18 @@ public final class PlaybackSession: ObservableObject {
         } catch { phase = .failed(error.localizedDescription) }
     }
 
+    /// A video already streaming when its download finishes switches to the file at the same position,
+    /// so it keeps playing and seeking offline.
+    public func switchToLocalMedia() {
+        guard let videoID, let current = video, !current.streamURL.isFileURL,
+              let url = localMedia?(videoID), url.isFileURL else { return }
+        let position = player.currentTime(), autoplay = phase == .playing || phase == .loading
+        generation = UUID(); resolveTask?.cancel(); resolveTask = nil
+        clearItemObservers(); player.pause(); player.replaceCurrentItem(with: nil)
+        install(ResolvedVideo(title: title, streamURL: url, usesHLS: url.pathExtension == "movpkg", description: current.description),
+                position: position, autoplay: autoplay)
+    }
+
     public func open(_ item: BrowseItem) {
         guard item.kind == .video else { open(""); return }
         open(item.contentID)
@@ -425,6 +437,10 @@ public final class PlaybackSession: ObservableObject {
                 else if item.status == .readyToPlay {
                     self.phase = .paused
                     if video.usesHLS { await self.selectHLSAudio(item) }
+                    // The app shows its own saved subtitles; HLS ones aren't in the download and would be fetched.
+                    if video.streamURL.isFileURL, let legible = try? await item.asset.loadMediaSelectionGroup(for: .legible) {
+                        item.select(nil, in: legible)
+                    }
                     if position.isNumeric && position.seconds > 0 {
                         await self.player.seek(to: position)
                     }
