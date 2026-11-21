@@ -173,7 +173,18 @@ final class DownloadManager: ObservableObject {
                     guard duration.isNumeric, duration.seconds > 0 else { throw BrowseError.unavailable(String(localized: "Live streams cannot be saved as offline downloads.")) }
                     guard self.matching(transfer)?.state == .preparing else { return }
                     let session = record.network == .wifiOnly ? self.wifiHLS! : self.hls!
-                    guard let download = session.makeAssetDownloadTask(asset: asset, assetTitle: record.item.title, assetArtworkData: nil, options: nil) else { throw PlaybackError.noPlayableStream }
+                    let download: AVAssetDownloadTask
+                    if #available(iOS 16, *), let variant = try await Self.offlineVariant(asset) {
+                        // YouTube lists H.264 and VP9 variants up to 4K. Save exactly one H.264 variant and play that
+                        // same one offline, so the player never waits for a variant that is not on disk.
+                        let configuration = AVAssetDownloadConfiguration(asset: asset, title: record.item.title)
+                        configuration.primaryContentConfiguration.variantQualifiers = [AVAssetVariantQualifier(variant: variant)]
+                        download = session.makeAssetDownloadTask(downloadConfiguration: configuration)
+                        current.hlsPeakBitRate = variant.peakBitRate
+                    } else {
+                        guard let task = session.makeAssetDownloadTask(asset: asset, assetTitle: record.item.title, assetArtworkData: nil, options: nil) else { throw PlaybackError.noPlayableStream }
+                        download = task
+                    }
                     download.taskDescription = transfer; tasks = [download]
                 } else {
                     let session = record.network == .wifiOnly ? self.wifiFiles! : self.files!
@@ -249,6 +260,14 @@ final class DownloadManager: ObservableObject {
         guard var current = matching(transfer) else { return }
         current.subtitlePath = outcome.path; current.subtitleError = outcome.error
         _ = library.update(current)
+    }
+    /// The best H.264 variant up to 1080p (VP9 and higher resolutions are skipped).
+    @available(iOS 16, *)
+    private static func offlineVariant(_ asset: AVURLAsset) async throws -> AVAssetVariant? {
+        try await asset.load(.variants).filter { variant in
+            guard let video = variant.videoAttributes, video.codecTypes.contains(kCMVideoCodecType_H264) else { return false }
+            return video.presentationSize.height <= 1080 && variant.peakBitRate != nil
+        }.max { ($0.peakBitRate ?? 0) < ($1.peakBitRate ?? 0) }
     }
     func localURL(_ record: DownloadRecord) -> URL? {
         guard let url = managedURL(record) else { return nil }

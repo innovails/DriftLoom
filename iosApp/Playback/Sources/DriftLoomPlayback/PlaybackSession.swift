@@ -56,6 +56,8 @@ public final class PlaybackSession: ObservableObject {
     /// Offline subtitles saved with a download, keyed by video ID.
     public var localSubtitles: ((String) -> (SubtitleTrack, [SubtitleCue])?)?
     public var localMedia: ((String) -> URL?)?
+    /// Peak bit rate of the variant saved in a downloaded HLS package, when known.
+    public var localPeakBitRate: ((String) -> Double?)?
     public var remembersPositions = true
     public var resumesPositions = true
     private let positions: PlaybackPositions?
@@ -430,6 +432,12 @@ public final class PlaybackSession: ObservableObject {
         let source = asset ?? fairPlay.map { FairPlayAsset.make(url: video.streamURL, handler: $0) }
         let item = source.map { AVPlayerItem(asset: $0) } ?? AVPlayerItem(url: video.streamURL)
         item.preferredMaximumResolution = video.streamURL.isFileURL ? .zero : resolutionLimit
+        if video.streamURL.isFileURL {
+            // Offline, only what was saved may be chosen: the saved variant, and no automatic subtitle or
+            // audio renditions (YouTube marks its HLS subtitles AUTOSELECT, and they are not downloaded).
+            item.appliesMediaSelectionCriteriaAutomatically = false
+            if let videoID, let rate = localPeakBitRate?(videoID), rate > 0 { item.preferredPeakBitRate = rate }
+        }
         itemObservation = item.observe(\.status, options: [.new]) { [weak self, weak item] _, _ in
             Task { @MainActor [weak self, weak item] in
                 guard let self, let item, self.player.currentItem === item else { return }
@@ -457,6 +465,8 @@ public final class PlaybackSession: ObservableObject {
                 self.failed(item)
             }
         }
+        // A local file has nothing to buffer; waiting for "enough" data only stalls it.
+        player.automaticallyWaitsToMinimizeStalling = !video.streamURL.isFileURL
         player.replaceCurrentItem(with: item)
     }
 
