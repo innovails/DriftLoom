@@ -82,6 +82,9 @@ struct ContentView: View {
         .sheet(item: $addingToPlaylist) { item in PlaylistPickerView(item: item).environmentObject(playlists) }
         .onReceive(NotificationCenter.default.publisher(for: .driftLoomAddToPlaylist)) { addingToPlaylist = $0.object as? BrowseItem }
         .onReceive(NotificationCenter.default.publisher(for: .driftLoomExpandPlayer)) { _ in expanded = true }
+        .onReceive(NotificationCenter.default.publisher(for: .driftLoomDownloadFinished)) { note in
+            if note.object as? String == playback.videoID { playback.switchToLocalMedia() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .driftLoomOpenDownloads)) { _ in
             expanded = false; dismissKeyboard(); tab = .library; libraryRequest = LibraryRequest(page: "downloads")
         }

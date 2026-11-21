@@ -363,7 +363,10 @@ final class DownloadManager: ObservableObject {
             record.state = .completed; record.progress = 1; record.error = nil
             var local = location; var values = URLResourceValues(); values.isExcludedFromBackup = true
             try? local.setResourceValues(values)
-            if library.update(record) { DownloadNotifier.shared.finished(record) }
+            if library.update(record) {
+                DownloadNotifier.shared.finished(record)
+                NotificationCenter.default.post(name: .driftLoomDownloadFinished, object: record.item.contentID)
+            }
             else { try? FileManager.default.removeItem(at: location) }
         } catch { try? FileManager.default.removeItem(at: location); failed(transfer, message: String(localized: "The downloaded media couldn't be verified for offline playback. Retry the download.")) }
     }
