@@ -246,6 +246,8 @@ public final class PlaybackSession: ObservableObject {
     private func applyMaximumHeight(_ height: Int) {
         guard Self.resolutionChoices.contains(height) else { return }
         maximumHeight = height
+        // A download holds one rendition; capping it would make AVPlayer fetch another one from the network.
+        guard video?.streamURL.isFileURL != true else { return }
         player.currentItem?.preferredMaximumResolution = resolutionLimit
     }
     private var resolutionLimit: CGSize {
@@ -415,7 +417,7 @@ public final class PlaybackSession: ObservableObject {
         if let url = video.licenseURL, let token = video.licenseToken { fairPlay = FairPlayLicense(licenseURL: url, token: token) } else { fairPlay = nil }
         let source = asset ?? fairPlay.map { FairPlayAsset.make(url: video.streamURL, handler: $0) }
         let item = source.map { AVPlayerItem(asset: $0) } ?? AVPlayerItem(url: video.streamURL)
-        item.preferredMaximumResolution = resolutionLimit
+        item.preferredMaximumResolution = video.streamURL.isFileURL ? .zero : resolutionLimit
         itemObservation = item.observe(\.status, options: [.new]) { [weak self, weak item] _, _ in
             Task { @MainActor [weak self, weak item] in
                 guard let self, let item, self.player.currentItem === item else { return }
@@ -446,10 +448,16 @@ public final class PlaybackSession: ObservableObject {
     /// iPhone would play YouTube's English dub; play the original (or the language chosen) instead.
     private func selectHLSAudio(_ item: AVPlayerItem) async {
         guard let group = try? await item.asset.loadMediaSelectionGroup(for: .audible), player.currentItem === item else { return }
+        // A downloaded package holds only the audio it was saved with; offer just that offline.
+        let available = (item.asset as? AVURLAsset)?.url.isFileURL == true
+            ? (item.asset as? AVURLAsset)?.assetCache?.mediaSelectionOptions(in: group) ?? [] : group.options
         var options: [String: AVMediaSelectionOption] = [:], tracks: [AudioTrack] = []
-        for option in group.options {
+        for option in available {
             let track = AudioTrack(option: option)
             if options[track.id] == nil { options[track.id] = option; tracks.append(track) }
+        }
+        if let first = available.first, !available.contains(where: { $0 == item.currentMediaSelection.selectedMediaOption(in: group) }) {
+            item.select(first, in: group)
         }
         guard tracks.count > 1 else { return }
         tracks = AudioTrack.ordered(tracks)
