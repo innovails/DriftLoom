@@ -118,6 +118,8 @@ public struct DownloadRecord: Codable, Identifiable, Equatable, Sendable {
     /// Finished parts of a merged download ("video"/"audio" → path relative to the app home),
     /// kept until both are present and combined into one file.
     public var partPaths: [String: String]?
+    /// Peak bit rate of the one HLS variant saved for offline playback, used to play that same variant.
+    public var hlsPeakBitRate: Double?
     public init(item: BrowseItem, choice: DownloadChoice, subtitleLanguage: String? = nil) {
         id = UUID(); self.item = item; self.choice = choice; state = .preparing; progress = 0; self.subtitleLanguage = subtitleLanguage
     }

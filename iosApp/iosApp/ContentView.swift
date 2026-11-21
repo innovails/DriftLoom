@@ -43,6 +43,10 @@ struct ContentView: View {
             let manager = DownloadManager.shared
             return manager.records.first(where: { $0.item.contentID == id && manager.localURL($0) != nil }).flatMap(manager.localURL)
         }
+        playback.localPeakBitRate = { id in
+            let manager = DownloadManager.shared
+            return manager.records.first(where: { $0.item.contentID == id && manager.localURL($0) != nil })?.hlsPeakBitRate
+        }
         // Saved subtitles are used only when this video plays from its download.
         playback.localSubtitles = { [weak playback] id in
             guard playback?.video?.streamURL.isFileURL == true || playback?.localMedia?(id) != nil else { return nil }
