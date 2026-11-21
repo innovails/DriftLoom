@@ -435,7 +435,6 @@ public final class PlaybackSession: ObservableObject {
         if video.streamURL.isFileURL {
             // Offline, only what was saved may be chosen: the saved variant, and no automatic subtitle or
             // audio renditions (YouTube marks its HLS subtitles AUTOSELECT, and they are not downloaded).
-            item.appliesMediaSelectionCriteriaAutomatically = false
             if let videoID, let rate = localPeakBitRate?(videoID), rate > 0 { item.preferredPeakBitRate = rate }
         }
         itemObservation = item.observe(\.status, options: [.new]) { [weak self, weak item] _, _ in
@@ -467,6 +466,7 @@ public final class PlaybackSession: ObservableObject {
         }
         // A local file has nothing to buffer; waiting for "enough" data only stalls it.
         player.automaticallyWaitsToMinimizeStalling = !video.streamURL.isFileURL
+        player.appliesMediaSelectionCriteriaAutomatically = !video.streamURL.isFileURL
         player.replaceCurrentItem(with: item)
     }
 
