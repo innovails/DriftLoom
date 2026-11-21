@@ -8,6 +8,7 @@ struct VideoDetailView: View {
     @EnvironmentObject private var queue: PlaybackQueue
     @EnvironmentObject private var preferences: AppPreferences
     @ObservedObject var playback: PlaybackSession
+    @ObservedObject private var downloads = DownloadManager.shared
     let onCollapse: () -> Void
     let onPlay: (BrowseItem) -> Void
     @StateObject private var related = BrowseStore()
@@ -247,7 +248,9 @@ struct VideoDetailView: View {
                     detailAction("Playlist", symbol: "plus.rectangle.on.rectangle") {
                         NotificationCenter.default.post(name: .driftLoomAddToPlaylist, object: item)
                     }
-                    detailAction("Download", symbol: "arrow.down.circle") { downloading = true }.accessibilityIdentifier("detailDownload")
+                    let downloaded = downloads.records.contains { $0.item.contentID == item.contentID && downloads.localURL($0) != nil }
+                    detailAction(downloaded ? "Downloaded" : "Download", symbol: downloaded ? "checkmark.circle.fill" : "arrow.down.circle") { downloading = true }
+                        .disabled(downloaded).accessibilityIdentifier("detailDownload")
                 }
             }
         }.padding(12)
